@@ -7,18 +7,28 @@ import anorm.SqlParser._
 import play.api.Play.current
 import java.util.Calendar
 import java.text.SimpleDateFormat
+import play.api.libs.json.Json
 
 import views.html.defaultpages.badRequest
 
 class Application extends Controller {
   // GET
   // refresh Web page
-  def get() = Action{
+  def get() = Action {
     val res = DB.withConnection { implicit con =>
-       SQL("SELECT * FROM thread").as(str("date") ~ str("text") ~ int("id") *).map(flatten)
+       SQL("SELECT * FROM thread ORDER BY id").as(str("date") ~ str("text") ~ int("id") *).map(flatten)
     }
 
-    Ok(res.mkString("\n"))
+    Ok(Json.toJson(
+        res.map { tup =>
+          Json.obj(
+            "id" -> tup._3,
+            "date" -> tup._1,
+            "text" -> tup._2
+          )
+        }
+      )
+    )
   }
 
   // POST curl command
@@ -36,26 +46,23 @@ class Application extends Controller {
       }
 
       DB.withConnection { implicit con =>
-        SQL("INSERT into thread(date, text, id) values (\"" + sdf.format(c.getTime) + "\",\"" + text + "\"," + (numOfRes(0)+1) + ")").executeUpdate()
+        val insert = "INSERT into thread(date, text, id)"
+        SQL(insert + " values (\"" + sdf.format(c.getTime) + "\",\"" + text + "\"," + (numOfRes(0)+1) + ")").executeUpdate()
       }
 
-      Ok("POST")
+      Ok("POST\n")
     }getOrElse {
       BadRequest("400 BAD REQUEST")
     }
   }
 
+  // DELETE curl command
+  // curl -X DELETE http://localhost:9000/bbs/delete/[id number]
   def delete(id: String) = Action{
-    /*
-    val source = scala.io.Source.fromFile("db.txt", "UTF-8")
-    val lines = source.getLines().toList.drop(id.toInt)
+    DB.withConnection { implicit con =>
+      SQL(" UPDATE thread SET date=\"DELETED\", text=\"DELETED\" where id=" + id.toInt).executeUpdate()
+    }
 
-    val fileOutPutStream = new FileStream("db.txt", true)
-    val writer = new StreamWriter(fileOutPutStream, "UTF-8")
-
-    writer.write(s"$lines\n")
-    writer.close()
-    */
-    Ok("Delete")
+    Ok("DELETE\n")
   }
 }
