@@ -2,37 +2,47 @@ package controllers
 
 import play.api.db.DB
 import play.api.mvc._
-import java.io.{ FileOutputStream=>FileStream, OutputStreamWriter=>StreamWriter }
-import java.sql._
 import anorm._
+import anorm.SqlParser._
+import play.api.Play.current
+import java.util.Calendar
+import java.text.SimpleDateFormat
+
+import views.html.defaultpages.badRequest
 
 class Application extends Controller {
-
-  // curl -H "Content-Type: text/plain" -d 'abc' http://localhost:9000/bbs
-  def get() = Action {
-    /*
-    DB.withConnection { implicit conn =>
-      val result: Boolean = SQL("Select * From detail").execute()
+  // GET
+  // refresh Web page
+  def get() = Action{
+    val res = DB.withConnection { implicit con =>
+       SQL("SELECT * FROM thread").as(str("date") ~ str("text") ~ int("id") *).map(flatten)
     }
-    */
 
-    Ok("GET")
+    Ok(res.mkString("\n"))
   }
 
-  def post() = Action {/* request =>
+  // POST curl command
+  // curl -H "Content-Type: text/plain" -d 'abc' http://localhost:9000/bbs
+  def post() = Action { request =>
     val body: AnyContent = request.body
     val textBody: Option[String] = body.asText
 
-    // Expecting text body
-    textBody.map { text =>
-      val fileOutPutStream = new FileStream("db.txt", true)
-      val writer = new StreamWriter(fileOutPutStream, "UTF-8")
+    textBody.map {text =>
+      val c = Calendar.getInstance()
+      val sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:S")
 
-      writer.write(s"$text\n")
-      writer.close()
+      val numOfRes = DB.withConnection { implicit con =>
+        SQL("SELECT COUNT(*) from thread").as(int("count(*)") *)
       }
-    */
-      Ok("Post")
+
+      DB.withConnection { implicit con =>
+        SQL("INSERT into thread(date, text, id) values (\"" + sdf.format(c.getTime) + "\",\"" + text + "\"," + (numOfRes(0)+1) + ")").executeUpdate()
+      }
+
+      Ok("POST")
+    }getOrElse {
+      BadRequest("400 BAD REQUEST")
+    }
   }
 
   def delete(id: String) = Action{

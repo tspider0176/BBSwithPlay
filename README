@@ -2,3 +2,14 @@ This is your new Play application
 =================================
 
 This file will be packaged with your application, when using `activator dist`.
+
+Change cloned directory and type
+% activator
+
+On play framework console,
+% run
+
+mysql start
+% mysql.server start
+mysql stop
+% mysql.server stop
